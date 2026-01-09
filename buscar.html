@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Valijas Transporte</title>
+
+<!-- jsPDF -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<!-- AutoTable -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.29/jspdf.plugin.autotable.min.js"></script>
+
+<style>
+/* ===== ESTILO GENERAL ===== */
+body {
+  font-family: Arial, sans-serif;
+  padding: 15px;
+  max-width: 600px;
+  margin: auto;
+  background: #f7f9fc;
+  color: #2c2c2c;
+}
+
+h2, h3 {
+  text-align: center;
+  color: #1f4fd8;
+}
+
+/* ===== INPUTS Y BOTONES ===== */
+input {
+  width: 100%;
+  padding: 10px;
+  margin: 6px 0;
+  font-size: 16px;
+  border: 1px solid #cfd8ff;
+  border-radius: 4px;
+}
+
+button {
+  width: 100%;
+  padding: 10px;
+  margin: 6px 0;
+  font-size: 16px;
+  border: none;
+  border-radius: 4px;
+  background: #1f4fd8;
+  color: white;
+  cursor: pointer;
+}
+
+button:hover {
+  background: #163bb3;
+}
+
+/* ===== TABLA ===== */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 15px;
+  background: white;
+}
+
+th {
+  background: #e3ecff;
+  color: #1f4fd8;
+}
+
+th, td {
+  border: 1px solid #cfd8ff;
+  padding: 6px;
+  font-size: 14px;
+}
+
+.total {
+  font-weight: bold;
+  background: #dbe7ff;
+}
+
+.oculto {
+  display: none;
+}
+
+/* ===== CRÉDITO ===== */
+.credito {
+  position: fixed;
+  top: 10px;
+  right: 15px;
+  font-size: 11px;
+  color: #555;
+  opacity: 0.85;
+  text-align: right;
+  line-height: 1.3;
+  z-index: 999;
+}
+</style>
+</head>
+
+<body>
+
+<!-- CRÉDITO -->
+<div class="credito">
+  <strong>Creado por Sebastián Delgado</strong><br>
+  Encargado de sistema última milla<br>
+  Administrativo de planificación logística
+</div>
+
+<h2>🔐 Acceso Transporte</h2>
+
+<input type="text" id="tuLogin" placeholder="Ingrese TU (Ruta)">
+<input type="password" id="ppuLogin" placeholder="Ingrese PPU (Patente)">
+<button onclick="login()">Ingresar</button>
+
+<hr>
+
+<div id="contenido" class="oculto">
+
+  <h3>📦 Valijas Asignadas</h3>
+
+  <button onclick="descargarPDF()" id="btnPDF" class="oculto">
+    📄 Descargar PDF
+  </button>
+
+  <table id="tabla" class="oculto">
+    <thead>
+      <tr>
+        <th>CC</th>
+        <th>ID</th>
+        <th>UMp destino</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+    <tfoot>
+      <tr class="total">
+        <td colspan="2">TOTAL VALIJAS</td>
+        <td id="totalValijas">0</td>
+      </tr>
+    </tfoot>
+  </table>
+
+</div>
+
+<script>
+/* ===== VARIABLES ===== */
+let TU_AUTORIZADA = "";
+let PPU_AUTORIZADA = "";
+let DATA_ACTUAL = [];
+
+/* ===== NORMALIZAR PPU ===== */
+function normalizar(texto) {
+  return texto
+    .toLowerCase()
+    .replace(/-/g, "")
+    .replace(/\s/g, "")
+    .replace(/[^a-z0-9]/g, "");
+}
+
+/* ===== LOGIN ===== */
+function login() {
+  const tu = document.getElementById("tuLogin").value.trim();
+  const ppu = normalizar(document.getElementById("ppuLogin").value);
+
+  if (!tu || !ppu) {
+    alert("Ingrese TU y PPU");
+    return;
+  }
+
+  TU_AUTORIZADA = tu;
+  PPU_AUTORIZADA = ppu;
+
+  buscar(); // carga automática
+}
+
+/* ===== BUSCAR VALIJAS ===== */
+function buscar() {
+
+  const datos = JSON.parse(localStorage.getItem("valijasData"));
+
+  if (!datos) {
+    alert("⚠️ Datos no cargados. Contacte al administrador.");
+    return;
+  }
+
+  const resultados = datos.filter(r =>
+    r.TU.toString().trim() === TU_AUTORIZADA &&
+    normalizar(r.PPU) === PPU_AUTORIZADA
+  );
+
+  DATA_ACTUAL = resultados;
+
+  const tbody = document.querySelector("#tabla tbody");
+  tbody.innerHTML = "";
+
+  if (resultados.length === 0) {
+    alert("No se encontraron valijas");
+    document.getElementById("tabla").classList.add("oculto");
+    document.getElementById("btnPDF").classList.add("oculto");
+    return;
+  }
+
+  resultados.forEach(r => {
+    tbody.innerHTML += `
+      <tr>
+        <td>${r.CC}</td>
+        <td>${r.ID}</td>
+        <td>${r["UMp destino"]}</td>
+      </tr>
+    `;
+  });
+
+  document.getElementById("totalValijas").innerText = resultados.length;
+
+  document.getElementById("contenido").classList.remove("oculto");
+  document.getElementById("tabla").classList.remove("oculto");
+  document.getElementById("btnPDF").classList.remove("oculto");
+}
+
+/* ===== PDF ===== */
+function descargarPDF() {
+
+  const { jsPDF } = window.jspdf;
+  const pdf = new jsPDF();
+
+  pdf.setFontSize(12);
+  pdf.text(
+    `Valijas - Ruta ${TU_AUTORIZADA} | PPU ${PPU_AUTORIZADA}`,
+    14,
+    15
+  );
+
+  const filas = DATA_ACTUAL.map(r => [
+    r.CC,
+    r.ID,
+    r["UMp destino"]
+  ]);
+
+  filas.push([
+    "TOTAL VALIJAS",
+    "",
+    DATA_ACTUAL.length.toString()
+  ]);
+
+  pdf.autoTable({
+    startY: 25,
+    head: [["CC", "ID", "UMp destino"]],
+    body: filas,
+    theme: "grid",
+    styles: { fontSize: 9 },
+    headStyles: { fillColor: [227, 236, 255] },
+    didParseCell: function (data) {
+      if (data.row.index === filas.length - 1) {
+        data.cell.styles.fontStyle = "bold";
+      }
+    }
+  });
+
+  pdf.save(`valijas_${TU_AUTORIZADA}_${PPU_AUTORIZADA}.pdf`);
+}
+</script>
+
+</body>
+</html>
+
+
