@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Administrador Valijas</title>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+<style>
+body { font-family: Arial; padding: 20px; background:#f4f6f9; }
+input, button { padding: 8px; margin: 5px 0; }
+button { background:#0b5ed7; color:#fff; border:none; cursor:pointer; }
+button:hover { background:#084298; }
+</style>
+</head>
+
+<body>
+
+<h2>🔐 Carga Administrador – Valijas</h2>
+
+<div id="login">
+  <input type="password" id="adminPass" placeholder="Clave administrador">
+  <br>
+  <button onclick="login()">Ingresar</button>
+</div>
+
+<div id="panel" style="display:none">
+  <p>Seleccione el archivo Excel (hoja <b>VALIJAS_WEB</b>)</p>
+  <input type="file" id="archivo" accept=".xlsx,.xls">
+  <br>
+  <button onclick="cargar()">Cargar datos</button>
+  <p id="msg"></p>
+</div>
+
+<script>
+const CLAVE_ADMIN = "admin123";
+let datos = [];
+
+function login() {
+  const pass = document.getElementById("adminPass").value;
+  if (pass !== CLAVE_ADMIN) {
+    alert("Clave incorrecta");
+    return;
+  }
+  document.getElementById("login").style.display = "none";
+  document.getElementById("panel").style.display = "block";
+}
+
+function cargar() {
+  const file = document.getElementById("archivo").files[0];
+  if (!file) {
+    alert("Seleccione un archivo");
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const data = new Uint8Array(e.target.result);
+    const workbook = XLSX.read(data, { type: "array" });
+    const sheet = workbook.Sheets["VALIJAS_WEB"];
+
+    if (!sheet) {
+      alert("No existe la hoja VALIJAS_WEB");
+      return;
+    }
+
+    datos = XLSX.utils.sheet_to_json(sheet);
+    localStorage.setItem("valijasData", JSON.stringify(datos));
+    localStorage.setItem("valijasFecha", new Date().toLocaleString());
+
+    document.getElementById("msg").innerText =
+      "✅ Datos cargados correctamente (" + datos.length + " registros)";
+  };
+
+  reader.readAsArrayBuffer(file);
+}
+</script>
+
+</body>
+</html>
